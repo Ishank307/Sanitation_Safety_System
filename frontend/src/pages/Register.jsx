@@ -2,8 +2,17 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { fetchApi } from '../services/api';
 
+const ZONES = [
+  "Zone A (North)",
+  "Zone B (Central)",
+  "Zone C (East)",
+  "Zone D (South)",
+  "Zone E (West)",
+  "Zone F (Industrial)",
+];
+
 export default function Register() {
-  const [formData, setFormData] = useState({ name: '', phone: '', password: '', role: 'worker', zone: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', password: '', zone: '', age: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -13,16 +22,12 @@ export default function Register() {
     setLoading(true);
     setError('');
 
-    const payload = { ...formData };
-    if (payload.role === 'admin') delete payload.zone;
-
     const { status, data } = await fetchApi('/users/register', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify(formData)
     });
 
     setLoading(false);
-
     if (status === 201 && data.success) {
       navigate('/login');
     } else {
@@ -32,53 +37,44 @@ export default function Register() {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-      <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>Create Account</h2>
+      <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '0.5rem' }}>Worker Registration</h2>
+        <p style={{ textAlign: 'center', marginBottom: '2rem', fontSize: '0.9rem' }}>Register as a field worker for SAMVED</p>
+
         {error && <div className="badge badge-danger" style={{ display: 'block', textAlign: 'center', marginBottom: '1.5rem', padding: '0.75rem' }}>{error}</div>}
-        
+
         <form onSubmit={handleRegister}>
           <div className="input-group">
             <label>Full Name</label>
-            <input type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required placeholder="John Doe" />
+            <input id="name" type="text" className="input-field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required placeholder="Enter your name" />
           </div>
           <div className="input-group">
             <label>Phone Number</label>
-            <input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required placeholder="10 digit number" />
+            <input id="phone" type="text" className="input-field" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required placeholder="10 digit mobile number" maxLength={10} />
           </div>
           <div className="input-group">
             <label>Password</label>
-            <input type="password" className="input-field" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required placeholder="••••••••" />
+            <input id="password" type="password" className="input-field" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required placeholder="Create a password" />
           </div>
           <div className="input-group">
-            <label>Role</label>
-            <select className="input-field" style={{ cursor: 'pointer' }} value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-              <option value="worker">Worker</option>
-              <option value="zonal_coordinator">Zonal Coordinator</option>
-              <option value="admin">System Admin</option>
+            <label>Age</label>
+            <input id="age" type="number" className="input-field" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required min="18" max="75" placeholder="Worker Age (for safety threshold computing)" />
+          </div>
+          <div className="input-group">
+            <label>Assigned Zone</label>
+            <select id="zone" className="input-field" style={{ cursor: 'pointer' }} value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value})} required>
+              <option value="">Select your zone</option>
+              {ZONES.map(z => <option key={z} value={z}>{z}</option>)}
             </select>
           </div>
-          
-          {formData.role !== 'admin' && (
-            <div className="input-group">
-              <label>Zone Assignment</label>
-              <select className="input-field" style={{ cursor: 'pointer' }} value={formData.zone} onChange={e => setFormData({...formData, zone: e.target.value})} required>
-                <option value="">Select a Zone</option>
-                <option value="Zone-A">Zone-A</option>
-                <option value="Zone-B">Zone-B</option>
-                <option value="Zone-C">Zone-C</option>
-                <option value="North">North</option>
-                <option value="South">South</option>
-              </select>
-            </div>
-          )}
-          
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', padding: '1rem' }} disabled={loading}>
-            {loading ? 'Registering...' : 'Register'}
+
+          <button id="register-btn" type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem', padding: '1rem' }} disabled={loading}>
+            {loading ? 'Creating Account...' : 'Register as Worker'}
           </button>
         </form>
-        
+
         <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.9rem' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Sign In</Link>
+          Already registered? <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Go to Login</Link>
         </p>
       </div>
     </div>

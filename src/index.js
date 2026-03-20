@@ -22,12 +22,15 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", project: "Sanitation Safety System - SAMVED 2026", timestamp: new Date().toISOString() });
 });
 
+const taskRoutes = require("./routes/taskRoutes");
+
 // --- Routes ---
 app.use("/api/users", userRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/sensors", sensorRouter);
 app.use("/api/sos", sosRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/tasks", taskRoutes);
 
 // --- 404 ---
 app.use((req, res) => {

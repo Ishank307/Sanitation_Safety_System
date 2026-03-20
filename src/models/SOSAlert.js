@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 const sosAlertSchema = new mongoose.Schema({
   id: { type: String, default: uuidv4, unique: true },
   workerId: { type: String, required: true }, // References User.id
+  zone: { type: String, required: false },
   location: {
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },

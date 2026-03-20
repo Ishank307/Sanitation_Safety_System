@@ -5,17 +5,20 @@ const { triggerAlert } = require("../utils/alertHelper");
 const triggerSOS = async (req, res) => {
   try {
     const workerId = req.user.id;
+    const workerZone = req.user.zone;
     const { location } = req.body;
 
     const sos = await SOSAlert.create({
       workerId,
+      zone: workerZone,
       location: location || null,
     });
 
     await triggerAlert({
       type: "SOS",
       workerId,
-      message: `SOS triggered by worker ${workerId}${location ? " at " + JSON.stringify(location) : ""}`,
+      zone: workerZone,
+      message: `SOS: Worker Emergency. ${location && location.description ? location.description : ''}`,
       severity: "critical",
     });
 

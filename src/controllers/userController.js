@@ -1,19 +1,22 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const { User, ZONES } = require("../models/User");
 
-// POST /api/users/register
+// POST /api/users/register — WORKERS ONLY
 const registerUser = async (req, res) => {
   try {
-    const { name, phone, zone, password, medicalHistory, role } = req.body;
+    const { name, phone, zone, password, medicalHistory, age } = req.body;
 
     if (!name || !phone || !password) {
       return res.status(400).json({ success: false, message: "name, phone, and password are required" });
     }
 
-    const assignedRole = role || "worker";
-    if (assignedRole !== "admin" && !zone) {
-      return res.status(400).json({ success: false, message: "zone is required for workers and coordinators" });
+    if (!zone) {
+      return res.status(400).json({ success: false, message: "zone is required for workers" });
+    }
+
+    if (!ZONES.includes(zone)) {
+      return res.status(400).json({ success: false, message: `zone must be one of: ${ZONES.join(", ")}` });
     }
 
     const exists = await User.findOne({ phone });
@@ -26,26 +29,27 @@ const registerUser = async (req, res) => {
     const user = await User.create({
       name,
       phone,
-      zone: assignedRole === "admin" ? null : zone,
+      zone,
       password: hashedPassword,
+      age: age ? parseInt(age) : null,
       medicalHistory: medicalHistory || null,
-      role: assignedRole,
+      role: "worker", // ALWAYS worker via public registration
     });
 
     const userSafe = user.toObject();
     delete userSafe.password;
     delete userSafe._id;
 
-    return res.status(201).json({ success: true, message: "User registered", data: userSafe });
+    return res.status(201).json({ success: true, message: "Worker registered", data: userSafe });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// POST /api/users/login
+// POST /api/users/login — role param enforces which portal they're coming from
 const loginUser = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { phone, password, expectedRole } = req.body;
     if (!phone || !password) {
       return res.status(400).json({ success: false, message: "phone and password are required" });
     }
@@ -53,6 +57,11 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // If the login came from a specific portal, enforce the role
+    if (expectedRole && user.role !== expectedRole) {
+      return res.status(403).json({ success: false, message: `This account is not a ${expectedRole.replace("_", " ")}` });
     }
 
     const valid = await bcrypt.compare(password, user.password);
@@ -66,7 +75,7 @@ const loginUser = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 
-    return res.status(200).json({ success: true, token, userId: user.id, name: user.name, role: user.role });
+    return res.status(200).json({ success: true, token, userId: user.id, name: user.name, role: user.role, zone: user.zone, age: user.age });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -77,7 +86,7 @@ const getAllUsers = async (req, res) => {
   try {
     let query = {};
     if (req.user.role === "zonal_coordinator") {
-      query.zone = req.user.zone; // Coordinators only see their zone
+      query.zone = req.user.zone;
     }
 
     const users = await User.find(query).select("-password -_id");
@@ -98,4 +107,4 @@ const getUserById = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, getAllUsers, getUserById };
+module.exports = { registerUser, loginUser, getAllUsers, getUserById, ZONES };

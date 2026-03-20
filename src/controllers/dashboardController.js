@@ -1,4 +1,4 @@
-const User = require("../models/User");
+const { User } = require("../models/User");
 const Shift = require("../models/Shift");
 const SOSAlert = require("../models/SOSAlert");
 const SensorReading = require("../models/SensorReading");
@@ -33,7 +33,7 @@ const getDashboardSummary = async (req, res) => {
 const getZoneSummary = async (req, res) => {
   try {
     const zone = req.params.zone;
-    
+
     if (req.user.role === "zonal_coordinator" && req.user.zone !== zone) {
       return res.status(403).json({ success: false, message: "Access denied to this zone" });
     }
@@ -41,9 +41,9 @@ const getZoneSummary = async (req, res) => {
     const workers = await User.find({ role: "worker", zone }).select("-password -_id");
     const workerIds = workers.map(w => w.id);
 
-    const activeShifts = await Shift.countDocuments({ workerId: { $in: workerIds }, status: "active" });
+    const activeShifts = await Shift.countDocuments({ zone, status: "active" });
     const recentReadings = await SensorReading.find({ zone }).sort({ timestamp: -1 }).limit(10);
-    const sosAlerts = await SOSAlert.find({ workerId: { $in: workerIds }, status: "active" });
+    const sosAlerts = await SOSAlert.find({ zone, status: "active" });
 
     return res.status(200).json({
       success: true,
@@ -73,7 +73,7 @@ const getAllAlerts = async (req, res) => {
       // Coordinator sees alerts for their zone, or where their workers are involved
       const usersInZone = await User.find({ zone: req.user.zone });
       const userIds = usersInZone.map(u => u.id);
-      
+
       query.$or = [
         { zone: req.user.zone },
         { workerId: { $in: userIds } }

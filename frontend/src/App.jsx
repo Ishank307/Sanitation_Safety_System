@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Register from './pages/Register';
 import WorkerPortal from './pages/WorkerPortal';
+import Simulator from './pages/Simulator';
 import AdminDashboard from './pages/AdminDashboard';
 import Navbar from './components/Navbar';
 
@@ -15,6 +16,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/worker" element={<WorkerPortal />} />
+          <Route path="/worker/simulator" element={<Simulator />} />
           <Route path="/admin" element={<AdminDashboard />} />
           {/* Zonal Coordinators share the Admin interface but data is filtered by backend */}
         </Routes>
