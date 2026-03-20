@@ -16,12 +16,19 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// Only supervisors can access certain routes
-const supervisorOnly = (req, res, next) => {
-  if (req.user?.role !== "supervisor") {
-    return res.status(403).json({ success: false, message: "Supervisor access only" });
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Admin access only" });
   }
   next();
 };
 
-module.exports = { authMiddleware, supervisorOnly };
+const requireZonalCoordinator = (req, res, next) => {
+  const role = req.user?.role;
+  if (role !== "admin" && role !== "zonal_coordinator") {
+    return res.status(403).json({ success: false, message: "Admin or Zonal Coordinator access required" });
+  }
+  next();
+};
+
+module.exports = { authMiddleware, requireAdmin, requireZonalCoordinator };

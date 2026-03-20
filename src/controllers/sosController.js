@@ -1,26 +1,18 @@
-const { v4: uuidv4 } = require("uuid");
-const db = require("../config/db");
+const SOSAlert = require("../models/SOSAlert");
 const { triggerAlert } = require("../utils/alertHelper");
 
-// POST /api/sos  — worker hits SOS button
-const triggerSOS = (req, res) => {
+// POST /api/sos
+const triggerSOS = async (req, res) => {
   try {
     const workerId = req.user.id;
-    const { location } = req.body; // optional: { lat, lng, description }
+    const { location } = req.body;
 
-    const sos = {
-      id: uuidv4(),
+    const sos = await SOSAlert.create({
       workerId,
       location: location || null,
-      timestamp: new Date().toISOString(),
-      status: "active", // active | resolved
-      resolvedAt: null,
-    };
+    });
 
-    db.sosAlerts.push(sos);
-
-    // Also push to general alerts for dashboard
-    triggerAlert({
+    await triggerAlert({
       type: "SOS",
       workerId,
       message: `SOS triggered by worker ${workerId}${location ? " at " + JSON.stringify(location) : ""}`,
@@ -33,27 +25,38 @@ const triggerSOS = (req, res) => {
   }
 };
 
-// GET /api/sos — supervisor views all active SOS
-const getAllSOS = (req, res) => {
-  const { status } = req.query;
-  let alerts = [...db.sosAlerts];
-  if (status) alerts = alerts.filter((a) => a.status === status);
-  alerts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  return res.status(200).json({ success: true, count: alerts.length, data: alerts });
+// GET /api/sos
+const getAllSOS = async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = {};
+    if (status) query.status = status;
+
+    const alerts = await SOSAlert.find(query).sort({ timestamp: -1 });
+    return res.status(200).json({ success: true, count: alerts.length, data: alerts });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
 };
 
-// PATCH /api/sos/:id/resolve — supervisor resolves SOS
-const resolveSOS = (req, res) => {
-  const sos = db.sosAlerts.find((a) => a.id === req.params.id);
-  if (!sos) return res.status(404).json({ success: false, message: "SOS alert not found" });
-  if (sos.status === "resolved") {
-    return res.status(400).json({ success: false, message: "Already resolved" });
+// PATCH /api/sos/:id/resolve
+const resolveSOS = async (req, res) => {
+  try {
+    const sos = await SOSAlert.findOne({ id: req.params.id });
+    if (!sos) return res.status(404).json({ success: false, message: "SOS alert not found" });
+    
+    if (sos.status === "resolved") {
+      return res.status(400).json({ success: false, message: "Already resolved" });
+    }
+
+    sos.status = "resolved";
+    sos.resolvedAt = new Date();
+    await sos.save();
+
+    return res.status(200).json({ success: true, message: "SOS resolved", data: sos });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
-
-  sos.status = "resolved";
-  sos.resolvedAt = new Date().toISOString();
-
-  return res.status(200).json({ success: true, message: "SOS resolved", data: sos });
 };
 
 module.exports = { triggerSOS, getAllSOS, resolveSOS };

@@ -1,9 +1,7 @@
-const { v4: uuidv4 } = require("uuid");
-const db = require("../config/db");
+const SensorReading = require("../models/SensorReading");
 const SAFETY = require("../config/safetyConfig");
 const { triggerAlert } = require("../utils/alertHelper");
 
-// Evaluate sensor reading against safety thresholds
 const evaluateHazard = (reading) => {
   const { gasH2S, gasCO, gasCH4, o2Level } = reading;
   const violations = [];
@@ -21,8 +19,7 @@ const evaluateHazard = (reading) => {
 };
 
 // POST /api/sensors/reading
-// Called by Raspberry Pi (or simulator) to push sensor data
-const ingestReading = (req, res) => {
+const ingestReading = async (req, res) => {
   try {
     const { manholeId, zone, gasH2S, gasCO, gasCH4, o2Level } = req.body;
 
@@ -33,8 +30,7 @@ const ingestReading = (req, res) => {
     const violations = evaluateHazard({ gasH2S, gasCO, gasCH4, o2Level });
     const isHazardous = violations.length > 0;
 
-    const reading = {
-      id: uuidv4(),
+    const reading = await SensorReading.create({
       manholeId,
       zone,
       gasH2S: gasH2S ?? null,
@@ -43,14 +39,10 @@ const ingestReading = (req, res) => {
       o2Level: o2Level ?? null,
       isHazardous,
       violations,
-      timestamp: new Date().toISOString(),
-    };
+    });
 
-    db.sensorReadings.push(reading);
-
-    // Auto-trigger alert if hazardous
     if (isHazardous) {
-      triggerAlert({
+      await triggerAlert({
         type: "GAS_HAZARD",
         manholeId,
         zone,
@@ -59,40 +51,42 @@ const ingestReading = (req, res) => {
       });
     }
 
-    return res.status(201).json({
-      success: true,
-      isHazardous,
-      violations,
-      data: reading,
-    });
+    return res.status(201).json({ success: true, isHazardous, violations, data: reading });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// GET /api/sensors/readings — supervisor
-const getAllReadings = (req, res) => {
-  const { zone, hazardous } = req.query;
-  let readings = [...db.sensorReadings];
+// GET /api/sensors/readings
+const getAllReadings = async (req, res) => {
+  try {
+    let query = {};
+    if (req.user.role === "zonal_coordinator") query.zone = req.user.zone;
+    if (req.query.zone && req.user.role === "admin") query.zone = req.query.zone;
+    if (req.query.hazardous === "true") query.isHazardous = true;
 
-  if (zone) readings = readings.filter((r) => r.zone === zone);
-  if (hazardous === "true") readings = readings.filter((r) => r.isHazardous);
-
-  // Latest first
-  readings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  return res.status(200).json({ success: true, count: readings.length, data: readings });
+    const readings = await SensorReading.find(query).sort({ timestamp: -1 });
+    return res.status(200).json({ success: true, count: readings.length, data: readings });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
 };
 
 // GET /api/sensors/latest/:manholeId
-const getLatestByManhole = (req, res) => {
-  const readings = db.sensorReadings
-    .filter((r) => r.manholeId === req.params.manholeId)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+const getLatestByManhole = async (req, res) => {
+  try {
+    const reading = await SensorReading.findOne({ manholeId: req.params.manholeId }).sort({ timestamp: -1 });
+    if (!reading) return res.status(404).json({ success: false, message: "No readings found for this manhole" });
+    
+    // Check permission if zonal coordinator
+    if (req.user.role === "zonal_coordinator" && reading.zone !== req.user.zone) {
+      return res.status(403).json({ success: false, message: "Access denied to this zone" });
+    }
 
-  if (!readings.length) {
-    return res.status(404).json({ success: false, message: "No readings found for this manhole" });
+    return res.status(200).json({ success: true, data: reading });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
-  return res.status(200).json({ success: true, data: readings[0] });
 };
 
 module.exports = { ingestReading, getAllReadings, getLatestByManhole };

@@ -2,9 +2,13 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
-const workerRoutes = require("./routes/workerRoutes");
+const connectDB = require("./config/db");
+const userRoutes = require("./routes/userRoutes");
 const shiftRoutes = require("./routes/shiftRoutes");
 const { sensorRouter, sosRouter, dashboardRouter } = require("./routes/otherRoutes");
+
+// Connect Database
+connectDB();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,7 +23,7 @@ app.get("/health", (req, res) => {
 });
 
 // --- Routes ---
-app.use("/api/workers", workerRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/sensors", sensorRouter);
 app.use("/api/sos", sosRouter);

@@ -1,12 +1,17 @@
-// db.js — In-memory store (swap with real DB later)
-// Each key maps to an array acting as a table
+const mongoose = require("mongoose");
 
-const db = {
-  workers: [],       // { id, name, phone, zone, medicalHistory, createdAt }
-  shifts: [],        // { id, workerId, startTime, endTime, totalHours, status }
-  sensorReadings: [],// { id, manholeId, zone, gasH2S, gasCO, gasCH4, o2Level, timestamp, isHazardous }
-  sosAlerts: [],     // { id, workerId, location, timestamp, status, resolvedAt }
-  alerts: [],        // { id, type, workerId|manholeId, message, severity, timestamp, acknowledged }
+const connectDB = async () => {
+  try {
+    const uri = process.env.MONGO_URI;
+    if (!uri) {
+      console.warn("⚠️ MONGO_URI is missing in .env file. Database connection will fail.");
+    }
+    const conn = await mongoose.connect(uri);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`❌ MongoDB Error: ${error.message}`);
+    process.exit(1);
+  }
 };
 
-module.exports = db;
+module.exports = connectDB;
