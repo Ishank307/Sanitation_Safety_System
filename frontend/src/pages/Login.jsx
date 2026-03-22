@@ -6,7 +6,7 @@ import { ShieldCheck, User, MapPin, MessageSquare } from 'lucide-react';
 const PORTALS = [
   { key: 'admin', label: 'Central coordinator', icon: <ShieldCheck size={40} />, color: 'var(--primary)', description: 'System-wide access and oversight' },
   { key: 'zonal_coordinator', label: 'Zonal coordinator', icon: <MapPin size={40} />, color: 'var(--success)', description: 'Zone-level management and tasking' },
-  { key: 'civilian', label: 'Civilian portal', icon: <MessageSquare size={40} />, color: '#38bdf8', description: 'Report issues, rate your zone, share ideas' },
+  { key: 'civilian', label: 'Civilian', icon: <MessageSquare size={40} />, color: '#38bdf8', description: 'Report issues, rate your zone, share ideas' },
   { key: 'worker', label: 'Worker Portal', icon: <User size={40} />, color: 'var(--warning)', description: 'Field operations and task updates' },
 ];
 

@@ -273,7 +273,7 @@ export default function AdminDashboard() {
                 }}
               >
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span className="badge badge-danger">{g.kind}</span>
+                  <span className={`badge ${g.kind === 'complaint' ? 'badge-danger' : 'badge-info'}`}>{g.kind}</span>
                   <span className="badge">{g.status}</span>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{g.zone}</span>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
