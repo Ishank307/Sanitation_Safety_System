@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { fetchApi } from '../services/api';
-import { ShieldCheck, User, MapPin } from 'lucide-react';
+import { ShieldCheck, User, MapPin, MessageSquare } from 'lucide-react';
 
 const PORTALS = [
-  { key: 'admin', label: 'Admin Portal', icon: <ShieldCheck size={40} />, color: 'var(--primary)', description: 'System-wide access and oversight' },
-  { key: 'zonal_coordinator', label: 'Coordinator Portal', icon: <MapPin size={40} />, color: 'var(--success)', description: 'Zone-level management and tasking' },
+  { key: 'admin', label: 'Central coordinator', icon: <ShieldCheck size={40} />, color: 'var(--primary)', description: 'System-wide access and oversight' },
+  { key: 'zonal_coordinator', label: 'Zonal coordinator', icon: <MapPin size={40} />, color: 'var(--success)', description: 'Zone-level management and tasking' },
+  { key: 'civilian', label: 'Civilian portal', icon: <MessageSquare size={40} />, color: '#38bdf8', description: 'Report issues, rate your zone, share ideas' },
   { key: 'worker', label: 'Worker Portal', icon: <User size={40} />, color: 'var(--warning)', description: 'Field operations and task updates' },
 ];
 
@@ -34,7 +35,9 @@ export default function Login() {
       localStorage.setItem('name', data.name);
       localStorage.setItem('zone', data.zone || '');
       localStorage.setItem('age', data.age || '');
-      navigate(data.role === 'worker' ? '/worker' : '/admin');
+      if (data.role === 'worker') navigate('/worker');
+      else if (data.role === 'civilian') navigate('/civilian');
+      else navigate('/admin');
     } else {
       setError(data.message || 'Login failed');
     }
@@ -50,7 +53,7 @@ export default function Login() {
           <p style={{ marginTop: '0.5rem', fontSize: '1.1rem' }}>Sanitation Safety System — Solapur Municipal Corporation</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', width: '100%', maxWidth: '900px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', width: '100%', maxWidth: '1000px' }}>
           {PORTALS.map(portal => (
             <button key={portal.key} onClick={() => setSelectedPortal(portal.key)}
               className="glass-panel" id={`portal-${portal.key}`}
@@ -66,8 +69,9 @@ export default function Login() {
             </button>
           ))}
         </div>
-        <p style={{ fontSize: '0.9rem' }}>
-          New worker? <Link to="/register" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Register here</Link>
+        <p style={{ fontSize: '0.9rem', display: 'flex', gap: '1.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <span>New worker? <Link to="/register" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Worker registration</Link></span>
+          <span>Civilian? <Link to="/register/civilian" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Sign up with your zone</Link></span>
         </p>
       </div>
     );

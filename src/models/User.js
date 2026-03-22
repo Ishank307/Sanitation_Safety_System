@@ -12,7 +12,7 @@ const ZONES = [
 
 const userSchema = new mongoose.Schema({
   id: { type: String, default: uuidv4, unique: true },
-  role: { type: String, enum: ["worker", "zonal_coordinator", "admin"], required: true },
+  role: { type: String, enum: ["worker", "zonal_coordinator", "admin", "civilian"], required: true },
   name: { type: String, required: true },
   phone: { type: String, required: true, unique: true },
   password: { type: String, required: true },

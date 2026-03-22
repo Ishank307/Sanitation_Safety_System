@@ -31,4 +31,11 @@ const requireZonalCoordinator = (req, res, next) => {
   next();
 };
 
-module.exports = { authMiddleware, requireAdmin, requireZonalCoordinator };
+const requireCivilian = (req, res, next) => {
+  if (req.user?.role !== "civilian") {
+    return res.status(403).json({ success: false, message: "Civilian access only" });
+  }
+  next();
+};
+
+module.exports = { authMiddleware, requireAdmin, requireZonalCoordinator, requireCivilian };

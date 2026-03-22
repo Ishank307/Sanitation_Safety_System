@@ -4,6 +4,8 @@ import Register from './pages/Register';
 import WorkerPortal from './pages/WorkerPortal';
 import Simulator from './pages/Simulator';
 import AdminDashboard from './pages/AdminDashboard';
+import CivilianPortal from './pages/CivilianPortal';
+import RegisterCivilian from './pages/RegisterCivilian';
 import Navbar from './components/Navbar';
 
 function App() {
@@ -15,6 +17,8 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/register/civilian" element={<RegisterCivilian />} />
+          <Route path="/civilian" element={<CivilianPortal />} />
           <Route path="/worker" element={<WorkerPortal />} />
           <Route path="/worker/simulator" element={<Simulator />} />
           <Route path="/admin" element={<AdminDashboard />} />

@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const connectDB = require("./config/db");
 const userRoutes = require("./routes/userRoutes");
@@ -16,6 +17,7 @@ const PORT = process.env.PORT || 3000;
 // --- Middleware ---
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // --- Health Check ---
 app.get("/health", (req, res) => {
@@ -23,6 +25,7 @@ app.get("/health", (req, res) => {
 });
 
 const taskRoutes = require("./routes/taskRoutes");
+const grievanceRoutes = require("./routes/grievanceRoutes");
 
 // --- Routes ---
 app.use("/api/users", userRoutes);
@@ -31,6 +34,7 @@ app.use("/api/sensors", sensorRouter);
 app.use("/api/sos", sosRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/grievances", grievanceRoutes);
 
 // --- 404 ---
 app.use((req, res) => {

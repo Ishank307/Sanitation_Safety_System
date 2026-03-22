@@ -97,6 +97,16 @@ const updateTaskStatus = async (req, res) => {
     task.updatedAt = new Date();
     await task.save();
 
+    if (status === "completed" && task.grievanceId) {
+      const { Grievance } = require("../models/Grievance");
+      const g = await Grievance.findOne({ id: task.grievanceId });
+      if (g && g.kind === "complaint") {
+        g.status = "resolved";
+        g.updatedAt = new Date();
+        await g.save();
+      }
+    }
+
     return res.status(200).json({ success: true, message: "Task updated", data: task });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

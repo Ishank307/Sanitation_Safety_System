@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, Activity, Bell, Map as MapIcon, ShieldAlert, CheckCircle, Shield, AlertOctagon, Plus, X, ChevronDown } from 'lucide-react';
-import { fetchApi } from '../services/api';
+import { Users, Activity, Bell, Map as MapIcon, ShieldAlert, CheckCircle, Shield, AlertOctagon, Plus, X, ChevronDown, MessageSquare, Star } from 'lucide-react';
+import { fetchApi, API_ORIGIN } from '../services/api';
 
 const ZONES = ["Zone A (North)", "Zone B (Central)", "Zone C (East)", "Zone D (South)", "Zone E (West)", "Zone F (Industrial)"];
 const TASK_TYPES = ["Routine", "Inspection", "Blockage", "Overflow", "Waste", "SOS Follow-up"];
@@ -16,6 +16,13 @@ export default function AdminDashboard() {
   const [newTask, setNewTask] = useState({ title: '', description: '', type: 'Routine', zone: '', workerId: '' });
   const [taskLoading, setTaskLoading] = useState(false);
   const [taskError, setTaskError] = useState('');
+  const [grievances, setGrievances] = useState([]);
+  const [zoneRatings, setZoneRatings] = useState([]);
+  const [grievanceAssign, setGrievanceAssign] = useState(null);
+  const [grievanceWorkers, setGrievanceWorkers] = useState([]);
+  const [grievanceWorkerId, setGrievanceWorkerId] = useState('');
+  const [grievanceActionLoading, setGrievanceActionLoading] = useState(false);
+  const [grievanceError, setGrievanceError] = useState('');
 
   const role = localStorage.getItem('role');
   const userZone = localStorage.getItem('zone');
@@ -39,19 +46,68 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     const summaryEndpoint = role === 'admin' ? '/dashboard/summary' : `/dashboard/zone/${encodeURIComponent(userZone)}`;
-    const [summaryRes, alertsRes, tasksRes] = await Promise.all([
+    const [summaryRes, alertsRes, tasksRes, grievRes, ratingsRes] = await Promise.all([
       fetchApi(summaryEndpoint),
       fetchApi('/dashboard/alerts?acknowledged=false'),
-      fetchApi('/tasks')
+      fetchApi('/tasks'),
+      fetchApi('/grievances'),
+      fetchApi('/grievances/zone-ratings'),
     ]);
     if (summaryRes.status === 200) setSummary(summaryRes.data.data);
     if (alertsRes.status === 200) setAlerts(alertsRes.data.data);
     if (tasksRes.status === 200) setTasks(tasksRes.data.data);
+    if (grievRes.status === 200 && grievRes.data.success) setGrievances(grievRes.data.data || []);
+    if (ratingsRes.status === 200 && ratingsRes.data.success) setZoneRatings(ratingsRes.data.data || []);
     setLoading(false);
   };
 
   const handleAcknowledge = async (id) => {
     await fetchApi(`/dashboard/alerts/${id}/acknowledge`, { method: 'PATCH' });
+    loadData();
+  };
+
+  useEffect(() => {
+    if (!grievanceAssign) return;
+    const z = grievanceAssign.zone;
+    (async () => {
+      const { status, data } = await fetchApi(`/users?zone=${encodeURIComponent(z)}`);
+      if (status === 200 && data.data) {
+        setGrievanceWorkers(data.data.filter((u) => u.role === 'worker'));
+      }
+    })();
+  }, [grievanceAssign]);
+
+  const openAssignGrievance = (g) => {
+    setGrievanceError('');
+    setGrievanceWorkerId('');
+    setGrievanceAssign(g);
+  };
+
+  const submitGrievanceAssign = async (e) => {
+    e.preventDefault();
+    if (!grievanceWorkerId) {
+      setGrievanceError('Select a worker');
+      return;
+    }
+    setGrievanceActionLoading(true);
+    setGrievanceError('');
+    const { status, data } = await fetchApi(`/grievances/${grievanceAssign.id}/assign-task`, {
+      method: 'POST',
+      body: JSON.stringify({ workerId: grievanceWorkerId }),
+    });
+    setGrievanceActionLoading(false);
+    if (status === 201 && data.success) {
+      setGrievanceAssign(null);
+      loadData();
+    } else {
+      setGrievanceError(data.message || 'Assignment failed');
+    }
+  };
+
+  const markSuggestionDone = async (id) => {
+    setGrievanceActionLoading(true);
+    await fetchApi(`/grievances/${id}/review`, { method: 'PATCH' });
+    setGrievanceActionLoading(false);
     loadData();
   };
 
@@ -175,7 +231,124 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Citizen grievances & suggestions (zonal + central) */}
+      <div className="glass-panel" style={{ padding: '2rem' }}>
+        <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <MessageSquare size={22} color="#38bdf8" /> Grievances &amp; citizen suggestions
+          <span className="badge badge-info" style={{ marginLeft: 'auto' }}>
+            {grievances.filter((g) => g.status === 'open').length} open
+          </span>
+        </h3>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+          Complaints from civilians in {role === 'admin' ? 'all zones' : userZone}. Assign a complaint to a worker to create a task and resolve it when the worker marks the task complete.
+        </p>
+
+        {zoneRatings.length > 0 && (
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.2)' }}>
+            <h4 style={{ margin: '0 0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+              <Star size={18} color="var(--warning)" /> Recent zone cleanliness ratings
+            </h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+              {zoneRatings.slice(0, 8).map((r) => (
+                <span key={r.id} className="badge badge-warning" style={{ fontWeight: 500 }}>
+                  {r.zone?.split('(')[0]?.trim()} · {r.rating}/5{r.note ? ` — ${r.note.slice(0, 40)}${r.note.length > 40 ? '…' : ''}` : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {grievances.length === 0 ? (
+          <p style={{ opacity: 0.5 }}>No citizen submissions yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '520px', overflowY: 'auto' }}>
+            {grievances.map((g) => (
+              <div
+                key={g.id}
+                style={{
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(0,0,0,0.25)',
+                  borderLeft: `3px solid ${g.kind === 'complaint' ? 'var(--danger)' : 'var(--primary)'}`,
+                }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span className="badge badge-danger">{g.kind}</span>
+                  <span className="badge">{g.status}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{g.zone}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    {g.submitterName} · {g.submitterPhone}
+                  </span>
+                </div>
+                <p style={{ margin: '0.5rem 0', fontSize: '0.95rem' }}>{g.text}</p>
+                {g.imageUrl && (
+                  <a href={`${API_ORIGIN}${g.imageUrl}`} target="_blank" rel="noreferrer">
+                    <img
+                      src={`${API_ORIGIN}${g.imageUrl}`}
+                      alt="Citizen upload"
+                      style={{ maxHeight: '160px', borderRadius: '8px', marginTop: '0.5rem', objectFit: 'cover' }}
+                    />
+                  </a>
+                )}
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {g.kind === 'complaint' && g.status === 'open' && (
+                    <button type="button" className="btn btn-primary" style={{ padding: '0.45rem 0.9rem' }} onClick={() => openAssignGrievance(g)}>
+                      Assign to worker
+                    </button>
+                  )}
+                  {g.kind === 'suggestion' && g.status === 'open' && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ padding: '0.45rem 0.9rem' }}
+                      disabled={grievanceActionLoading}
+                      onClick={() => markSuggestionDone(g.id)}
+                    >
+                      Mark reviewed
+                    </button>
+                  )}
+                  {g.linkedTaskId && <span className="badge badge-info">Task: {g.linkedTaskId.slice(0, 8)}…</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Create Task Modal */}
+      {grievanceAssign && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '2rem', position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => { setGrievanceAssign(null); setGrievanceError(''); }}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+            >
+              <X size={22} />
+            </button>
+            <h3 style={{ marginBottom: '1rem' }}>Assign complaint to worker</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{grievanceAssign.text?.slice(0, 200)}{grievanceAssign.text?.length > 200 ? '…' : ''}</p>
+            {grievanceError && <div className="badge badge-danger" style={{ display: 'block', marginBottom: '1rem', padding: '0.65rem' }}>{grievanceError}</div>}
+            <form onSubmit={submitGrievanceAssign}>
+              <div className="input-group">
+                <label>Worker in {grievanceAssign.zone}</label>
+                <select className="input-field" value={grievanceWorkerId} onChange={(e) => setGrievanceWorkerId(e.target.value)} required>
+                  <option value="">Select worker</option>
+                  {grievanceWorkers.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} — {w.phone}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', padding: '0.9rem' }} disabled={grievanceActionLoading}>
+                {grievanceActionLoading ? 'Assigning…' : 'Create task & assign'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showTaskModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
           <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '2.5rem', position: 'relative' }}>

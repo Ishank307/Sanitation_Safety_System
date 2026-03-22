@@ -46,6 +46,50 @@ const registerUser = async (req, res) => {
   }
 };
 
+// POST /api/users/register/civilian
+const registerCivilian = async (req, res) => {
+  try {
+    const { name, phone, zone, password } = req.body;
+
+    if (!name || !phone || !password) {
+      return res.status(400).json({ success: false, message: "name, phone, and password are required" });
+    }
+
+    if (!zone) {
+      return res.status(400).json({ success: false, message: "zone is required" });
+    }
+
+    if (!ZONES.includes(zone)) {
+      return res.status(400).json({ success: false, message: `zone must be one of: ${ZONES.join(", ")}` });
+    }
+
+    const exists = await User.findOne({ phone });
+    if (exists) {
+      return res.status(409).json({ success: false, message: "User with this phone already registered" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      phone,
+      zone,
+      password: hashedPassword,
+      role: "civilian",
+      age: null,
+      medicalHistory: null,
+    });
+
+    const userSafe = user.toObject();
+    delete userSafe.password;
+    delete userSafe._id;
+
+    return res.status(201).json({ success: true, message: "Civilian registered", data: userSafe });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // POST /api/users/login — role param enforces which portal they're coming from
 const loginUser = async (req, res) => {
   try {
@@ -87,6 +131,8 @@ const getAllUsers = async (req, res) => {
     let query = {};
     if (req.user.role === "zonal_coordinator") {
       query.zone = req.user.zone;
+    } else if (req.user.role === "admin" && req.query.zone) {
+      query.zone = req.query.zone;
     }
 
     const users = await User.find(query).select("-password -_id");
@@ -107,4 +153,4 @@ const getUserById = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, getAllUsers, getUserById, ZONES };
+module.exports = { registerUser, registerCivilian, loginUser, getAllUsers, getUserById, ZONES };
