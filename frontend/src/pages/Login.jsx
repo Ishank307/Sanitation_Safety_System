@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { fetchApi } from '../services/api';
 import { ShieldCheck, User, MapPin, MessageSquare } from 'lucide-react';
 
@@ -17,6 +17,18 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const appliedPortalFromState = useRef(false);
+
+  useEffect(() => {
+    if (appliedPortalFromState.current) return;
+    const sp = location.state?.selectPortal;
+    if (sp && PORTALS.some((p) => p.key === sp)) {
+      appliedPortalFromState.current = true;
+      setSelectedPortal(sp);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -102,6 +114,24 @@ export default function Login() {
             {loading ? 'Authenticating...' : `Sign In as ${portalMeta.label.replace(' Portal', '')}`}
           </button>
         </form>
+
+        {selectedPortal === 'civilian' && (
+          <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            New citizen?{' '}
+            <Link to="/register/civilian" style={{ color: '#38bdf8', fontWeight: 600, textDecoration: 'none' }}>
+              Sign up (phone, password &amp; zone)
+            </Link>
+          </p>
+        )}
+
+        {selectedPortal === 'worker' && (
+          <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            New worker?{' '}
+            <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+              Worker registration
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

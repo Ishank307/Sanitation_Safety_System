@@ -18,6 +18,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/register/civilian" element={<RegisterCivilian />} />
+          <Route path="/signup/civilian" element={<Navigate to="/register/civilian" replace />} />
           <Route path="/civilian" element={<CivilianPortal />} />
           <Route path="/worker" element={<WorkerPortal />} />
           <Route path="/worker/simulator" element={<Simulator />} />
